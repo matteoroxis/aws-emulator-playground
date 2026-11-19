@@ -40,7 +40,12 @@ jobs:
       - run: python -m tools.deploy
       - run: bash scripts/start_web_function_local.sh
       - run: pytest tests/integration tests/e2e --junitxml=reports/emulator.xml
-      - uses: actions/upload-artifact@v4
+      - name: Test report
+        if: always()
+        run: >-
+          python -m tools.junit_summary reports/emulator.xml
+          --title "Emulator tests on latest (integration + e2e)" --targets web-function,function-url
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: emulator-latest-run

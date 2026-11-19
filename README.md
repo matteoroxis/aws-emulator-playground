@@ -34,6 +34,7 @@ emulator  install aws-emulator 1.0.522 (.deb package) and start it
           deploy: DynamoDB table, Web Function, Event Function with a Function URL
           start the Web Function server as a local process on the runner
           pytest tests/integration tests/e2e
+          test report: the result of each test in the job summary
           upload logs, JUnit reports and JSON outputs as an artifact
 ```
 
@@ -45,6 +46,8 @@ The e2e suite in `tests/e2e/` runs the same tests against two targets:
 - `function-url`: the Python function from `functions/event/`, called through the emulator's Function URL.
 
 For each target, one test also reads the new item straight from DynamoDB, to make sure the write reached the table in the emulator.
+
+After the tests, `tools/junit_summary.py` reads the JUnit report and adds it to the job summary on GitHub, under the capability gate table. It shows one table per test file: the integration tests one per row, the e2e tests as a matrix with one column per target. Each failed test also gets an error annotation and a collapsed section with its traceback. The step runs even when the tests fail, so the summary shows what broke.
 
 `.github/workflows/nightly-emulator-latest.yml` runs the same emulator steps every night at 03:17 UTC, but with the latest emulator release instead of the pinned one. It is not a required check, so it never blocks a merge. It runs the gate with `--strict-gaps`, which makes it fail when a known gap starts to work. That is the signal to update the gate and remove any workaround for that gap.
 
@@ -112,7 +115,7 @@ The emulator creates new credentials and a new CA certificate every time it star
 ```
 functions/web/        Web Function (Node.js 24): src/app.js routing, src/repo.js DynamoDB, src/server.js entry point
 functions/event/      Event Function (Python 3.13) for the Function URL
-tools/                capability_gate.py, deploy.py, aws_helpers.py
+tools/                capability_gate.py, deploy.py, junit_summary.py, aws_helpers.py
 scripts/emulator/     install.sh, start.sh, env.sh, stop.sh
 scripts/              ci_local.sh, start_web_function_local.sh
 tests/unit/           no emulator needed

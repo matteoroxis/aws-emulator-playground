@@ -46,6 +46,7 @@ def test_duplicate_id_conflicts(api, new_id):
 @pytest.mark.parametrize(
     "payload",
     [{"name": ""}, {"id": "not valid!", "name": "x"}, {"name": "x" * 101}, ["not", "an", "object"]],
+    ids=["empty-name", "invalid-id", "name-too-long", "not-an-object"],
 )
 def test_validation_errors(api, payload):
     r = api.post("/items", json=payload)

@@ -71,7 +71,7 @@ jobs:
           mkdir -p ../../reports
           node --test --test-reporter=spec --test-reporter=junit \
             --test-reporter-destination=stdout --test-reporter-destination=../../reports/unit-node.xml "test/*.test.js"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: unit-reports
@@ -116,12 +116,18 @@ jobs:
       - name: Integration + e2e tests
         run: pytest tests/integration tests/e2e --junitxml=reports/emulator.xml
 
+      - name: Test report
+        if: always()
+        run: >-
+          python -m tools.junit_summary reports/emulator.xml
+          --title "Emulator tests (integration + e2e)" --targets web-function,function-url
+
       - name: Stop processes
         if: always()
         run: |
           if [ -f .emulator/web-function.pid ]; then kill "$(cat .emulator/web-function.pid)" || true; fi
           bash scripts/emulator/stop.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: emulator-run

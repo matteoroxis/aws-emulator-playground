@@ -43,4 +43,5 @@ step "capability gate"       python -m tools.capability_gate
 step "deploy"                python -m tools.deploy
 step "start web fn locally"  bash scripts/start_web_function_local.sh
 step "integration + e2e"     pytest tests/integration tests/e2e -v --junitxml=reports/emulator.xml
+step "test report"           python -m tools.junit_summary reports/emulator.xml --title "Emulator tests" --targets web-function,function-url
 echo; echo "=== all steps passed"
