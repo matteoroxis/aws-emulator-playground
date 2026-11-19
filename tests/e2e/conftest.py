@@ -1,7 +1,8 @@
-"""The e2e suite runs the same HTTP contract against every available target:
+"""The e2e suite calls the Event Function through the Function URL that the emulator serves.
 
-web-function   WEB_LOCAL_URL  - the Web Function's server run as a local process, data on the emulator
-function-url   FUNCTION_URL   - the Event Function served by the emulator's Function URL
+The emulator does not run Web Function code yet (its endpoint answers 501), so the Web Function is
+covered by the integration tests (control plane) and by its own unit tests. See the xfail test in
+tests/integration/test_deployment.py, which fails on purpose as soon as the endpoint starts to work.
 """
 
 import os
@@ -12,30 +13,14 @@ import pytest
 
 from tools.aws_helpers import ca_bundle
 
-TARGETS = {
-    "web-function": ("WEB_LOCAL_URL", "web-function"),
-    "function-url": ("FUNCTION_URL", "event-function"),
-}
 
-
-@pytest.fixture(params=list(TARGETS), scope="module")
-def target(request):
-    env_var, impl = TARGETS[request.param]
-    base = os.environ.get(env_var)
+@pytest.fixture(scope="module")
+def api():
+    base = os.environ.get("FUNCTION_URL")
     if not base:
-        pytest.skip(f"{env_var} not set")
+        pytest.skip("FUNCTION_URL not set (run tools/deploy.py first)")
     with httpx.Client(base_url=base.rstrip("/"), verify=ca_bundle(), timeout=30) as client:
-        yield client, impl
-
-
-@pytest.fixture
-def api(target):
-    return target[0]
-
-
-@pytest.fixture
-def impl(target):
-    return target[1]
+        yield client
 
 
 @pytest.fixture

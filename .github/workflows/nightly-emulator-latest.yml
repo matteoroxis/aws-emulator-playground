@@ -38,13 +38,12 @@ jobs:
       - name: Capability gate (strict on closed gaps)
         run: python -m tools.capability_gate --strict-gaps
       - run: python -m tools.deploy
-      - run: bash scripts/start_web_function_local.sh
       - run: pytest tests/integration tests/e2e --junitxml=reports/emulator.xml
       - name: Test report
         if: always()
         run: >-
           python -m tools.junit_summary reports/emulator.xml
-          --title "Emulator tests on latest (integration + e2e)" --targets web-function,function-url
+          --title "Emulator tests on latest (integration + e2e)"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

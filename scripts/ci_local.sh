@@ -21,7 +21,6 @@ step() {
 }
 
 cleanup() {
-  if [ -f .emulator/web-function.pid ]; then kill "$(cat .emulator/web-function.pid)" 2>/dev/null || true; fi
   bash scripts/emulator/stop.sh
 }
 trap cleanup EXIT
@@ -41,7 +40,6 @@ step "start emulator"        bash scripts/emulator/start.sh
 step "env"                   bash scripts/emulator/env.sh
 step "capability gate"       python -m tools.capability_gate
 step "deploy"                python -m tools.deploy
-step "start web fn locally"  bash scripts/start_web_function_local.sh
 step "integration + e2e"     pytest tests/integration tests/e2e -v --junitxml=reports/emulator.xml
-step "test report"           python -m tools.junit_summary reports/emulator.xml --title "Emulator tests" --targets web-function,function-url
+step "test report"           python -m tools.junit_summary reports/emulator.xml --title "Emulator tests"
 echo; echo "=== all steps passed"

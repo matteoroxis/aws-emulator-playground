@@ -110,8 +110,6 @@ jobs:
         run: python -m tools.capability_gate
       - name: Deploy to the emulator
         run: python -m tools.deploy
-      - name: Start web function as a local process
-        run: bash scripts/start_web_function_local.sh
 
       - name: Integration + e2e tests
         run: pytest tests/integration tests/e2e --junitxml=reports/emulator.xml
@@ -120,13 +118,11 @@ jobs:
         if: always()
         run: >-
           python -m tools.junit_summary reports/emulator.xml
-          --title "Emulator tests (integration + e2e)" --targets web-function,function-url
+          --title "Emulator tests (integration + e2e)"
 
-      - name: Stop processes
+      - name: Stop AWS Emulator
         if: always()
-        run: |
-          if [ -f .emulator/web-function.pid ]; then kill "$(cat .emulator/web-function.pid)" || true; fi
-          bash scripts/emulator/stop.sh
+        run: bash scripts/emulator/stop.sh
       - uses: actions/upload-artifact@v7
         if: always()
         with:

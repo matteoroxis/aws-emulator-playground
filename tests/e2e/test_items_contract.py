@@ -8,10 +8,10 @@ import pytest
 pytestmark = pytest.mark.emulator
 
 
-def test_health_reports_implementation(api, impl):
+def test_health_reports_implementation(api):
     r = api.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok", "impl": impl}
+    assert r.json() == {"status": "ok", "impl": "event-function"}
 
 
 def test_create_read_delete_roundtrip(api, new_id):

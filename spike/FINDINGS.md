@@ -41,5 +41,5 @@ In short, the emulator supports the control plane of Web Functions but not the d
 ## What this means for the project
 
 - A Web Function cannot be tested end to end through the emulator's endpoint.
-- A Web Function is a normal HTTP server, though. In CI it can run as a process that uses the emulator's DynamoDB. This tests the HTTP layer and the data logic, while the emulator checks the deployment through the control plane.
+- The emulator can still check the deployment of a Web Function through the control plane: function, revision, endpoint and environment.
 - The path through an Event Function and a Function URL can be tested end to end on the emulator. The only adjustment is removing the routing prefix from `rawPath`.

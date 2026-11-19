@@ -35,3 +35,6 @@ emulator_credentials
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# --- Article draft and cover (local only) ---
+article/

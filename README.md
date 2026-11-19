@@ -32,7 +32,6 @@ unit      pytest tests/unit (Python routing and gate rules)
 emulator  install aws-emulator 1.0.522 (.deb package) and start it
           capability gate: check each AWS operation the project uses
           deploy: DynamoDB table, Web Function, Event Function with a Function URL
-          start the Web Function server as a local process on the runner
           pytest tests/integration tests/e2e
           test report: the result of each test in the job summary
           upload logs, JUnit reports and JSON outputs as an artifact
@@ -40,14 +39,14 @@ emulator  install aws-emulator 1.0.522 (.deb package) and start it
 
 The jobs run in this order, and each one starts only if the one before it passed. The ruleset in `.github/rulesets/main.json` makes `lint`, `unit` and `emulator` required checks, so a pull request can only be merged when all three are green.
 
-The e2e suite in `tests/e2e/` runs the same tests against two targets:
+The tests in the `emulator` job only talk to resources on the emulator:
 
-- `web-function`: the Node server from `functions/web/`, started on the runner by `scripts/start_web_function_local.sh`, with its data in the emulator's DynamoDB;
-- `function-url`: the Python function from `functions/event/`, called through the emulator's Function URL.
+- `tests/integration/` reads back what `tools/deploy.py` created: the table schema, the Web Function with its revision and endpoint in `Active` state and the table name in its environment, and the public policy of the Function URL.
+- `tests/e2e/` sends plain HTTP requests to the Function URL, so each request goes through the Python function in `functions/event/` and into DynamoDB on the emulator. One test also reads the new item straight from DynamoDB, to make sure the write reached the table.
 
-For each target, one test also reads the new item straight from DynamoDB, to make sure the write reached the table in the emulator.
+The emulator does not run Web Function code yet (see the known gaps below), so the request handling of the Web Function is covered only by its unit tests in `functions/web/test/`.
 
-After the tests, `tools/junit_summary.py` reads the JUnit report and adds it to the job summary on GitHub, under the capability gate table. It shows one table per test file: the integration tests one per row, the e2e tests as a matrix with one column per target. Each failed test also gets an error annotation and a collapsed section with its traceback. The step runs even when the tests fail, so the summary shows what broke.
+After the tests, `tools/junit_summary.py` reads the JUnit report and adds it to the job summary on GitHub, under the capability gate table. It shows one table per test file, one row per test, with the reason next to each expected failure. Each failed test also gets an error annotation and a collapsed section with its traceback. The step runs even when the tests fail, so the summary shows what broke.
 
 `.github/workflows/nightly-emulator-latest.yml` runs the same emulator steps every night at 03:17 UTC, but with the latest emulator release instead of the pinned one. It is not a required check, so it never blocks a merge. It runs the gate with `--strict-gaps`, which makes it fail when a known gap starts to work. That is the signal to update the gate and remove any workaround for that gap.
 
@@ -64,7 +63,7 @@ These are the three known gaps, checked with aws-emulator 1.0.522 (released on 1
 
 | Behaviour | What the emulator does | How the project handles it |
 |---|---|---|
-| HTTP traffic to the Web Function endpoint | Answers `501`: it creates the function but does not run its code | The Node server runs as a local process in CI. `test_web_function_endpoint_serves_our_code` is marked `xfail(strict=True)`, so it fails as soon as the emulator serves the code |
+| HTTP traffic to the Web Function endpoint | Answers `501`: it creates the function but does not run its code Only the control plane is tested on the emulator. `test_web_function_endpoint_serves_our_code` is marked `xfail(strict=True)`, so it fails as soon as the emulator serves the code |
 | `ListWebFunctionEndpoints` | Returns `NotImplemented` | The project uses `GetWebFunctionEndpoint` |
 | `rawPath` in Function URL events | Includes the emulator's routing prefix `/_aws/lambda-url/<id>` | `functions/event/items_api.py` removes the prefix. On AWS the prefix never appears, so this line changes nothing there |
 
@@ -117,10 +116,10 @@ functions/web/        Web Function (Node.js 24): src/app.js routing, src/repo.js
 functions/event/      Event Function (Python 3.13) for the Function URL
 tools/                capability_gate.py, deploy.py, junit_summary.py, aws_helpers.py
 scripts/emulator/     install.sh, start.sh, env.sh, stop.sh
-scripts/              ci_local.sh, start_web_function_local.sh
+scripts/ci_local.sh   runs the CI steps on a Linux machine
 tests/unit/           no emulator needed
 tests/integration/    checks the resources that tools/deploy.py created
-tests/e2e/            the HTTP contract, run against both targets
+tests/e2e/            the HTTP contract, through the Function URL
 .github/workflows/    ci.yml (required checks) and nightly-emulator-latest.yml
 .github/rulesets/     main.json, the ruleset for main
 spike/FINDINGS.md     raw results of the first experiments with the emulator
