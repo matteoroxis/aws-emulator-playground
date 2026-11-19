@@ -1,0 +1,37 @@
+# --- Spike: on GitHub only the findings; the exploratory scripts stay local ---
+# (scripts/ and tools/ replace them)
+spike/*
+!spike/FINDINGS.md
+
+# --- Run output: emulator, reports, local CI ---
+.emulator/
+reports/
+.ci.log
+*.zip
+
+# --- Dependencies and environments ---
+node_modules/
+.venv/
+venv/
+
+# --- Python cache ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# --- Secrets and local credentials: never on GitHub ---
+.env
+.env.*
+*.pem
+*.p12
+*.key
+emulator_credentials
+
+# --- Editor and OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,4 @@
+# Always LF in the repo and on checkout: the scripts run on Linux runners.
+* text=auto eol=lf
+*.png binary
+*.jpg binary

@@ -1,0 +1,50 @@
+name: nightly-emulator-latest
+
+# Runs the emulator suite against the newest AWS Emulator release. It is not a required check,
+# so it never blocks merges; it tells us when a new release breaks us or closes a known gap.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EMULATOR_VERSION: latest
+  PYTHON_VERSION: "3.13"
+  NODE_VERSION: "24"
+
+jobs:
+  emulator-latest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - working-directory: functions/web
+        run: npm ci --omit=dev
+      - run: bash scripts/emulator/install.sh
+      - run: bash scripts/emulator/start.sh
+      - run: bash scripts/emulator/env.sh
+      - name: Capability gate (strict on closed gaps)
+        run: python -m tools.capability_gate --strict-gaps
+      - run: python -m tools.deploy
+      - run: bash scripts/start_web_function_local.sh
+      - run: pytest tests/integration tests/e2e --junitxml=reports/emulator.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-latest-run
+          path: |
+            reports/
+            .emulator/*.log
+            .emulator/*.json

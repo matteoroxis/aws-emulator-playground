@@ -1,0 +1,131 @@
+name: ci
+
+# Runs on every PR to main. The three jobs below are required status checks in the
+# main ruleset, so GitHub auto-merges the PR only when all of them are green.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  EMULATOR_VERSION: "1.0.522"   # pinned; the nightly workflow tracks "latest"
+  PYTHON_VERSION: "3.13"
+  NODE_VERSION: "24"
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: node --check
+        run: for f in functions/web/src/*.js functions/web/test/*.js; do node --check "$f"; done
+      - name: shellcheck
+        run: shellcheck scripts/*.sh scripts/emulator/*.sh
+
+  unit:
+    name: unit
+    needs: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: pytest (unit)
+        run: pytest tests/unit --junitxml=reports/unit-python.xml
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: functions/web/package-lock.json
+      - name: node --test (unit)
+        working-directory: functions/web
+        run: |
+          npm ci
+          mkdir -p ../../reports
+          node --test --test-reporter=spec --test-reporter=junit \
+            --test-reporter-destination=stdout --test-reporter-destination=../../reports/unit-node.xml "test/*.test.js"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-reports
+          path: reports/
+
+  emulator:
+    name: emulator
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: functions/web/package-lock.json
+      - name: Build web function package
+        working-directory: functions/web
+        run: npm ci --omit=dev
+
+      - name: Install AWS Emulator ${{ env.EMULATOR_VERSION }}
+        run: bash scripts/emulator/install.sh
+      - name: Start AWS Emulator
+        run: bash scripts/emulator/start.sh
+      - name: Point SDKs at the emulator
+        run: bash scripts/emulator/env.sh
+
+      - name: Capability gate
+        run: python -m tools.capability_gate
+      - name: Deploy to the emulator
+        run: python -m tools.deploy
+      - name: Start web function as a local process
+        run: bash scripts/start_web_function_local.sh
+
+      - name: Integration + e2e tests
+        run: pytest tests/integration tests/e2e --junitxml=reports/emulator.xml
+
+      - name: Stop processes
+        if: always()
+        run: |
+          if [ -f .emulator/web-function.pid ]; then kill "$(cat .emulator/web-function.pid)" || true; fi
+          bash scripts/emulator/stop.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-run
+          path: |
+            reports/
+            .emulator/*.log
+            .emulator/*.json

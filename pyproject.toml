@@ -1,0 +1,19 @@
+[project]
+name = "aws-emulator-webfn"
+version = "0.1.0"
+description = "Items API on Lambda Web Functions + DynamoDB, tested in CI against AWS Emulator"
+requires-python = ">=3.13"
+
+[tool.pytest.ini_options]
+pythonpath = [".", "functions/event"]
+testpaths = ["tests"]
+markers = ["emulator: needs a running AWS Emulator (integration and e2e)"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+extend-exclude = ["spike", "functions/web/node_modules"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "BLE"]
